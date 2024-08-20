@@ -8,12 +8,12 @@ import (
 	"net/http"
 	"net/url"
 	"os"
-	backend "simple-balancer/balancer"
+	"simple-balancer/balancer"
 )
 
 var (
 	config     Config
-	serverPool = backend.NewServerPool()
+	serverPool = balancer.NewServerPool()
 )
 
 func loadBalance(w http.ResponseWriter, r *http.Request) {
@@ -24,7 +24,6 @@ func loadBalance(w http.ResponseWriter, r *http.Request) {
 	}
 
 	http.Error(w, "Service not available", http.StatusServiceUnavailable)
-
 	return
 }
 
@@ -33,7 +32,6 @@ type Config struct {
 }
 
 func main() {
-
 	var configPath string
 	var port int
 
@@ -58,19 +56,20 @@ func main() {
 	// Print the parsed result
 	fmt.Printf("Parsed YAML into struct: %+v\n", config)
 
+	lb := balancer.New("/")
 	for path, backends := range config.Backends {
 		for i, be := range backends {
 			u, err := url.Parse(be)
 			if err != nil {
 				log.Fatalf("malformed backend url at index %d: %s\n", i, path)
 			}
-			serverPool.RegisterBackend(u)
+			lb.Register(u)
 		}
 	}
 
 	srv := http.Server{
 		Addr:    fmt.Sprintf(":%d", port),
-		Handler: http.HandlerFunc(loadBalance),
+		Handler: lb.HandlerFunc(),
 	}
 
 	log.Println("listening on", port)
